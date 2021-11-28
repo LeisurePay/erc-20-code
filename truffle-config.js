@@ -50,8 +50,9 @@ module.exports = {
           process.env.BSC_SEED_PHRASE || process.env.BSC_PRIVATE_KEY,
           `https://data-seed-prebsc-1-s1.binance.org:8545`
         ),
+      networkCheckTimeout:1000*500,
       network_id: 97,
-      confirmations: 2,
+      confirmations: 0,
       timeoutBlocks: 500,
       skipDryRun: true,
     },
@@ -78,11 +79,11 @@ module.exports = {
   // Configure your compilers
   compilers: {
     solc: {
-      version: "0.6.8", // Fetch exact version from solc-bin (default: truffle's version)
+      version: "0.8.7", // Fetch exact version from solc-bin (default: truffle's version)
       settings: {
         // See the solidity docs for advice about optimization and evmVersion
         optimizer: {
-          enabled: false,
+          enabled: true,
           runs: 200,
         },
       },
