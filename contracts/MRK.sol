@@ -182,7 +182,7 @@ contract MRK is Context, IERC20, Ownable {
     address[] private _excluded;
    
     uint256 private constant MAX = ~uint256(0);
-    uint256 private _tTotal = 1000000000 * 1e18;
+    uint256 private _tTotal = 10000000000 * 1e18;
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
 
@@ -207,13 +207,20 @@ contract MRK is Context, IERC20, Ownable {
 
     address public _marketing = owner();
     
+    uint256 private feeLockDays = 180 days; // 6 months
+
     mapping(address=>uint256) private startBalance; // balance @ start of the day
     mapping(address=>uint256) private spent; // token spent  in a day
     mapping(address=>uint256) private lastReset; // % time of last clear
-    uint256 public _maxTxAmount = 30; // 30%/day
-    uint256 lastFeeChange = block.timestamp.sub(180 days); // 6 months ago
+    uint256 private _precision = 10000; // Precision
+    uint256 public _maxTxAmount = 3000; // 30%/day
+    uint256 lastFeeChange = block.timestamp.sub(feeLockDays); // 6 months ago
     uint256 private numTokensSellToAddToLiquidity = 500000 * 1e18;
+    // store addresses that a automatic market maker pairs. Any transfer *to* and *from* these addresses
+    // should be charged
+    mapping(address => bool) public automatedMarketMakerPairs;
     
+    event SetAutomatedMarketMakerPair(address indexed pair, bool indexed value);
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
     event SwapAndLiquify(
@@ -240,31 +247,33 @@ contract MRK is Context, IERC20, Ownable {
             lastReset[_who] = block.timestamp;
             spent[_who] = 0;
         }else{
-            uint256 percent = startBalance[_who].mul(_maxTxAmount).div(100);
+            uint256 percent = startBalance[_who].mul(_maxTxAmount).div(_precision);
             spent[_who] = spent[_who].add(_amount);
-            require(spent[_who] <= percent);
+            require(spent[_who] <= percent, "Exceed daily allowance");
         }
     }
     
     constructor() {
         _rOwned[_msgSender()] = _rTotal;
-
         
-        // IPancakeRouter02 _pancakeRouter02 = IPancakeRouter02(0xD99D1c33F9fC3444f8101754aBC46c52416550D1); TESTNET
+        // IPancakeRouter02 _pancakeRouter02 = IPancakeRouter02(0xD99D1c33F9fC3444f8101754aBC46c52416550D1); //TESTNET
         // IPancakeRouter02 _pancakeRouter02 = IPancakeRouter02(0x10ED43C718714eb63d5aA57B78B54704E256024E); // MAINNET
         // Create a uniswap pair for this new token
-        // pancakePair02 = IPancakeFactory(_pancakeRouter02.factory()).createPair(address(this), _pancakeRouter02.WETH());
+        // address _pancakePair02 = IPancakeFactory(_pancakeRouter02.factory()).createPair(address(this), _pancakeRouter02.WETH());
 
         // // set the rest of the contract variables
+        // pancakePair02 = _pancakePair02;
         // pancakeRouter02 = _pancakeRouter02;
-        
+
+        // _setAutomatedMarketMakerPair(_pancakePair02, true);
+
         //exclude owner and this contract from fee
         _isExcludedFromFee[owner()] = true;
         _isExcludedFromFee[address(this)] = true;
-        // _isExcludedFromFee[pancakePair02] = true;
+
         _isExcludedFromLimit[owner()] = true;
         _isExcludedFromLimit[address(this)] = true;
-        // _isExcludedFromLimit[pancakePair02] = true;
+        // _isExcludedFromLimit[_pancakePair02] = true;
         
         emit Transfer(address(0), _msgSender(), _tTotal);
     }
@@ -289,17 +298,29 @@ contract MRK is Context, IERC20, Ownable {
         numTokensSellToAddToLiquidity = _new;
     }
 
+    /**
+    * @dev Function to change the max transaction percentage, percentage is in precision of 10000
+    * @param _newMax The new max transaction percentage
+    */
+    function updateMaxPerc(uint256 _newMax) external onlyOwner {
+        require(_newMax <= _precision, "Max transaction percentage must be less than precision");
+        _maxTxAmount = _newMax;
+    }
+
     function changeRouter(address _new) external onlyOwner {
+        require(address(pancakeRouter02) != _new, "Cannot change router to the same router");
+
         IPancakeRouter02 _pancakeRouter02 = IPancakeRouter02(_new);
-         // Create a uniswap pair for this new token
-        pancakePair02 = IPancakeFactory(_pancakeRouter02.factory())
-            .createPair(address(this), _pancakeRouter02.WETH());
+         
+        // Create a pair for this new token
+        address _pancakePair02 = IPancakeFactory(_pancakeRouter02.factory()).createPair(address(this), _pancakeRouter02.WETH());
 
         // set the rest of the contract variables
+        pancakePair02 = _pancakePair02;
         pancakeRouter02 = _pancakeRouter02;
+        _isExcludedFromLimit[pancakePair02] = true;
 
-        // _isExcludedFromFee[pancakePair02] = true;
-        // _isExcludedFromLimit[pancakePair02] = true;
+        _setAutomatedMarketMakerPair(_pancakePair02, true);
 
     }
 
@@ -372,8 +393,20 @@ contract MRK is Context, IERC20, Ownable {
         return rAmount.div(currentRate);
     }
 
+    // allow adding additional AMM pairs to the list
+    function setAutomatedMarketMakerPair(address pair, bool value)
+        external
+        onlyOwner
+    {
+        require(
+            pair != pancakePair02,
+            "MRK: The pair cannot be removed from automatedMarketMakerPairs"
+        );
+
+        _setAutomatedMarketMakerPair(pair, value);
+    }
+
     function excludeFromReward(address account) public onlyOwner() {
-        // require(account != 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D, 'We can not exclude Uniswap router.');
         require(!_isExcluded[account], "Account is already excluded");
         if(_rOwned[account] > 0) {
             _tOwned[account] = tokenFromReflection(_rOwned[account]);
@@ -394,6 +427,20 @@ contract MRK is Context, IERC20, Ownable {
             }
         }
     }
+
+    function _setAutomatedMarketMakerPair(address pair, bool value) private {
+        require(
+            automatedMarketMakerPairs[pair] != value,
+            "MRK: Automated market maker pair is already set to that value"
+        );
+        automatedMarketMakerPairs[pair] = value;
+
+        if (value) {
+            excludeFromReward(pair);
+        }
+        emit SetAutomatedMarketMakerPair(pair, value);
+    }
+
     function _transferBothExcluded(address sender, address recipient, uint256 tAmount) private {
         (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity, uint256 tMarketing) = _getValues(tAmount);
         _tOwned[sender] = _tOwned[sender].sub(tAmount);
@@ -438,7 +485,7 @@ contract MRK is Context, IERC20, Ownable {
         require((liquidityPerc <= 6 && marketingPerc <= 6 && taxPerc <= 6), "Fees must not be greater than 6");
 
         if(liquidityPerc >= _liquidityFee || marketingPerc >= _marketingFee || taxPerc >= _taxFee){
-            require(lastFeeChange.add(180 days) <= block.timestamp, "Tax change interval has not reached");
+            require(lastFeeChange.add(feeLockDays) <= block.timestamp, "Tax change interval has not reached");
             lastFeeChange = block.timestamp;
         }
         _liquidityFee = liquidityPerc;
@@ -570,8 +617,9 @@ contract MRK is Context, IERC20, Ownable {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
-        if((from != owner() && to != owner()) || from != address(this) || from != pancakePair02 ||!_isExcludedFromLimit[from])
+        if((from != owner() && to != owner()) || !_isExcludedFromLimit[from]){
             antiDump(from, amount);
+        }
         
         // is the token balance of this contract address over the min number of
         // tokens that we need to initiate a swap + liquidity lock?
@@ -595,7 +643,7 @@ contract MRK is Context, IERC20, Ownable {
         bool takeFee = true;
         
         //if any account belongs to _isExcludedFromFee account then remove the fee
-        if(_isExcludedFromFee[from] || _isExcludedFromFee[to]){
+        if(_isExcludedFromFee[from] || _isExcludedFromFee[to] || (!automatedMarketMakerPairs[from] && !automatedMarketMakerPairs[to])) {
             takeFee = false;
         }
         
