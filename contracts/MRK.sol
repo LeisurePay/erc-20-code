@@ -205,7 +205,7 @@ contract MRK is Context, IERC20, Ownable {
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
 
-    address public _marketing = owner();
+    address public _marketing;
     
     uint256 private feeLockDays = 180 days; // 6 months
 
@@ -257,15 +257,18 @@ contract MRK is Context, IERC20, Ownable {
         _rOwned[_msgSender()] = _rTotal;
         
         // IPancakeRouter02 _pancakeRouter02 = IPancakeRouter02(0xD99D1c33F9fC3444f8101754aBC46c52416550D1); //TESTNET
-        // IPancakeRouter02 _pancakeRouter02 = IPancakeRouter02(0x10ED43C718714eb63d5aA57B78B54704E256024E); // MAINNET
+        IPancakeRouter02 _pancakeRouter02 = IPancakeRouter02(0x10ED43C718714eb63d5aA57B78B54704E256024E); // MAINNET
         // Create a uniswap pair for this new token
-        // address _pancakePair02 = IPancakeFactory(_pancakeRouter02.factory()).createPair(address(this), _pancakeRouter02.WETH());
+        address _pancakePair02 = IPancakeFactory(_pancakeRouter02.factory()).createPair(address(this), _pancakeRouter02.WETH());
+
+        _marketing = owner();
+
 
         // // set the rest of the contract variables
-        // pancakePair02 = _pancakePair02;
-        // pancakeRouter02 = _pancakeRouter02;
+        pancakePair02 = _pancakePair02;
+        pancakeRouter02 = _pancakeRouter02;
 
-        // _setAutomatedMarketMakerPair(_pancakePair02, true);
+        _setAutomatedMarketMakerPair(_pancakePair02, true);
 
         //exclude owner and this contract from fee
         _isExcludedFromFee[owner()] = true;
@@ -273,7 +276,7 @@ contract MRK is Context, IERC20, Ownable {
 
         _isExcludedFromLimit[owner()] = true;
         _isExcludedFromLimit[address(this)] = true;
-        // _isExcludedFromLimit[_pancakePair02] = true;
+        _isExcludedFromLimit[_pancakePair02] = true;
         
         emit Transfer(address(0), _msgSender(), _tTotal);
     }
@@ -307,6 +310,12 @@ contract MRK is Context, IERC20, Ownable {
         _maxTxAmount = _newMax;
     }
 
+    function changeMarketing(address _new) external onlyOwner {
+        _isExcludedFromFee[_new] = true;
+        _marketing = _new;
+    }
+
+    
     function changeRouter(address _new) external onlyOwner {
         require(address(pancakeRouter02) != _new, "Cannot change router to the same router");
 
@@ -415,8 +424,8 @@ contract MRK is Context, IERC20, Ownable {
         _excluded.push(account);
     }
 
-    function includeInReward(address account) external onlyOwner() {
-        require(_isExcluded[account], "Account is already excluded");
+    function includeInReward(address account) public onlyOwner() {
+        require(_isExcluded[account], "Account is already included");
         for (uint256 i = 0; i < _excluded.length; i++) {
             if (_excluded[i] == account) {
                 _excluded[i] = _excluded[_excluded.length - 1];
@@ -437,6 +446,10 @@ contract MRK is Context, IERC20, Ownable {
 
         if (value) {
             excludeFromReward(pair);
+            excludeFromLimit(pair);
+        }else{
+            includeInReward(pair);
+            includeInLimit(pair);
         }
         emit SetAutomatedMarketMakerPair(pair, value);
     }
