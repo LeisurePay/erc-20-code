@@ -190,13 +190,13 @@ contract MRK is Context, IERC20, Ownable {
     string private _symbol = "MRK";
     uint8 private _decimals = 18;
 
-    uint256 public _liquidityFee = 3;
+    uint256 public _liquidityFee = 300;
     uint256 private _previousLiquidityFee = _liquidityFee;
     
-    uint256 public _taxFee = 2;
+    uint256 public _taxFee = 200;
     uint256 private _previousTaxFee = _taxFee;
     
-    uint256 public _marketingFee = 1;
+    uint256 public _marketingFee = 100;
     uint256 private _previousMarketingFee = _marketingFee;
 
     IPancakeRouter02 public pancakeRouter02;
@@ -481,21 +481,9 @@ contract MRK is Context, IERC20, Ownable {
     function includeInFee(address account) public onlyOwner {
         _isExcludedFromFee[account] = false;
     }
-    
-    function setTaxFeePercent(uint256 taxFee) private {
-        _taxFee = taxFee;
-    }
-    
-    function setLiquidityFeePercent(uint256 liquidityFee) private {
-        _liquidityFee = liquidityFee;
-    }
-    
-    function setMarketingFeePercent(uint256 marketingFee) private {
-        _marketingFee = marketingFee;
-    }
 
     function updateFees(uint256 liquidityPerc, uint256 marketingPerc, uint256 taxPerc) external onlyOwner {
-        require((liquidityPerc <= 6 && marketingPerc <= 6 && taxPerc <= 6), "Fees must not be greater than 6");
+        require(liquidityPerc.add(marketingPerc).add(taxPerc) <= 600, "Fees must not be greater than 6%");
 
         if(liquidityPerc >= _liquidityFee || marketingPerc >= _marketingFee || taxPerc >= _taxFee){
             require(lastFeeChange.add(feeLockDays) <= block.timestamp, "Tax change interval has not reached");
@@ -577,15 +565,15 @@ contract MRK is Context, IERC20, Ownable {
     }
     
     function calculateTaxFee(uint256 _amount) private view returns (uint256) {
-        return _amount.mul(_taxFee).div(100);
+        return _amount.mul(_taxFee).div(_precision);
     }
 
     function calculateLiquidityFee(uint256 _amount) private view returns (uint256) {
-        return _amount.mul(_liquidityFee).div(100);
+        return _amount.mul(_liquidityFee).div(_precision);
     }
 
     function calculateMarketingFee(uint256 _amount) private view returns (uint256) {
-        return _amount.mul(_marketingFee).div(100);
+        return _amount.mul(_marketingFee).div(_precision);
     }
     
     function removeAllFee() private {
