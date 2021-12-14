@@ -1,4 +1,4 @@
-const MRK = artifacts.require("MRK");
+const LPY = artifacts.require("LPY");
 const {
   ether,
   expectEvent,
@@ -8,11 +8,11 @@ const {
 
 let instance;
 
-contract("MRK", (accounts) => {
+contract("LPY", (accounts) => {
   const [admin, alice, bob] = accounts;
 
   beforeEach(async () => {
-    instance = await MRK.new();
+    instance = await LPY.new();
   });
 
   it("creation: should create an initial balance of totalSupply for the creator", async () => {

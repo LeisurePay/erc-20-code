@@ -1,9 +1,9 @@
-const MRK = artifacts.require("MRK");
+const LPY = artifacts.require("LPY");
 module.exports = async function (deployer, network, accounts) {
   const [admin] = accounts
 
-  await deployer.deploy(MRK);
+  await deployer.deploy(LPY);
 
-  // const mrk = await MRK.deployed();
-  // console.log(await mrk.address)
+  // const lpy = await LPY.deployed();
+  // console.log(await lpy.address)
 };

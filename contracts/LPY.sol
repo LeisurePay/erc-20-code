@@ -167,7 +167,7 @@ interface IPancakeRouter02 is IPancakeRouter01 {
   2% fee auto distribute to all holders
   1% fee to marketing
 */
-contract MRK is Context, IERC20, Ownable {
+contract LPY is Context, IERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
@@ -188,8 +188,8 @@ contract MRK is Context, IERC20, Ownable {
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
 
-    string private _name = "MRK";
-    string private _symbol = "MRK";
+    string private _name = "Leisure Pay Token";
+    string private _symbol = "LPY";
     uint8 private _decimals = 18;
 
     uint256 public _liquidityFee = 300;
@@ -417,7 +417,7 @@ contract MRK is Context, IERC20, Ownable {
     {
         require(
             pair != pancakePair02,
-            "MRK: The pair cannot be removed from automatedMarketMakerPairs"
+            "LPY: The pair cannot be removed from automatedMarketMakerPairs"
         );
 
         _setAutomatedMarketMakerPair(pair, value);
@@ -448,7 +448,7 @@ contract MRK is Context, IERC20, Ownable {
     function _setAutomatedMarketMakerPair(address pair, bool value) private {
         require(
             automatedMarketMakerPairs[pair] != value,
-            "MRK: Automated market maker pair is already set to that value"
+            "LPY: Automated market maker pair is already set to that value"
         );
         automatedMarketMakerPairs[pair] = value;
 
