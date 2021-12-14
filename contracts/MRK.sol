@@ -171,7 +171,7 @@ contract MRK is Context, IERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
-    mapping (address => bool) private _blacklist;
+    mapping (address => bool) public _blacklist;
 
     mapping (address => uint256) private _rOwned;
     mapping (address => uint256) private _tOwned;
