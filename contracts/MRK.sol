@@ -171,6 +171,8 @@ contract MRK is Context, IERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
+    mapping (address => bool) private _blacklist;
+
     mapping (address => uint256) private _rOwned;
     mapping (address => uint256) private _tOwned;
     mapping (address => mapping (address => uint256)) private _allowances;
@@ -301,6 +303,11 @@ contract MRK is Context, IERC20, Ownable {
         numTokensSellToAddToLiquidity = _new;
     }
 
+    function setBlacklisted(address _blacklistAddress, bool _isBlacklisted) external onlyOwner {
+        require (_blacklistAddress != address(0), "Unable to lock Zero Address");
+        _blacklist[_blacklistAddress] = _isBlacklisted;
+    }
+
     /**
     * @dev Function to change the max transaction percentage, percentage is in precision of 10000
     * @param _newMax The new max transaction percentage
@@ -379,6 +386,7 @@ contract MRK is Context, IERC20, Ownable {
     function deliver(uint256 tAmount) public {
         address sender = _msgSender();
         require(!_isExcluded[sender], "Excluded addresses cannot call this function");
+        require(!_blacklist[sender], "Blacklisted addresses cannot call this function");
         (uint256 rAmount,,,,,,) = _getValues(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _rTotal = _rTotal.sub(rAmount);
@@ -617,6 +625,8 @@ contract MRK is Context, IERC20, Ownable {
     ) private {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
+        require(!_blacklist[from], "ERC20: From account is blacklisted");
+        require(!_blacklist[to], "ERC20: To account is blacklisted");
         require(amount > 0, "Transfer amount must be greater than zero");
         if((from != owner() && to != owner()) || !_isExcludedFromLimit[from]){
             antiDump(from, amount);
