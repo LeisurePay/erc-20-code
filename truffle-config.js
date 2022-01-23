@@ -1,20 +1,11 @@
 require("dotenv").config();
 const HDWalletProvider = require("@truffle/hdwallet-provider");
 
-const fs = require('fs');
-const secret = JSON.parse(fs.readFileSync(".secret").toString().trim());
-
-const privateKey = secret.privateKey;
-const mnemonic = secret.mnemonic;
-
-const bscScanApiKey = secret.bscScanApiKey;
-
-
 
 module.exports = {
   plugins: ["truffle-plugin-verify"],
   api_keys: {
-    bscscan: process.env.BSC_API_KEY || bscScanApiKey,
+    bscscan: process.env.BSC_API_KEY,
     etherscan: process.env.ETH_API_KEY,
   },
   networks: {
@@ -71,7 +62,7 @@ module.exports = {
     bsc_main: {
       provider: () =>
         new HDWalletProvider(
-          process.env.BSC_SEED_PHRASE || process.env.BSC_PRIVATE_KEY || privateKey,
+          process.env.BSC_SEED_PHRASE || process.env.BSC_PRIVATE_KEY,
           `https://bsc-dataseed1.binance.org`
         ),
       network_id: 56,
@@ -89,7 +80,7 @@ module.exports = {
   // Configure your compilers
   compilers: {
     solc: {
-      version: "0.8.7", // Fetch exact version from solc-bin (default: truffle's version)
+      version: "0.8.9", // Fetch exact version from solc-bin (default: truffle's version)
       settings: {
         // See the solidity docs for advice about optimization and evmVersion
         optimizer: {
