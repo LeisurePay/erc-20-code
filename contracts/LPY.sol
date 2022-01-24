@@ -326,18 +326,21 @@ contract LPY is Context, IERC20, Ownable {
     function changeRouter(address _new) external onlyOwner {
         require(address(pancakeRouter02) != _new, "Cannot change router to the same router");
 
-        IPancakeRouter02 _pancakeRouter02 = IPancakeRouter02(_new);
+        pancakeRouter02 = IPancakeRouter02(_new);
          
-        // Create a pair for this new token
-        address _pancakePair02 = IPancakeFactory(_pancakeRouter02.factory()).createPair(address(this), _pancakeRouter02.WETH());
+        address _swapPair = IPancakeFactory(pancakeRouter02.factory()).getPair(address(this), pancakeRouter02.WETH());
+        
+        // check if pair already exists if not, create new pair
+        if(_swapPair == address(0)){
+            // Create a pair for this new token
+            _swapPair = IPancakeFactory(pancakeRouter02.factory()).createPair(address(this), pancakeRouter02.WETH());
+        }
 
         // set the rest of the contract variables
-        pancakePair02 = _pancakePair02;
-        pancakeRouter02 = _pancakeRouter02;
-        _isExcludedFromLimit[pancakePair02] = true;
+        _setAutomatedMarketMakerPair(_swapPair, true);
+        _isExcludedFromLimit[_swapPair] = true;
 
-        _setAutomatedMarketMakerPair(_pancakePair02, true);
-
+        pancakePair02 = _swapPair;
     }
 
     function balanceOf(address account) public view override returns (uint256) {
